@@ -1,4 +1,5 @@
 **/.idea/
+**/*.iml
 # Backend
 backend/target/
 *.log
