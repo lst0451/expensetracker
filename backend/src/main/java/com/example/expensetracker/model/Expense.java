@@ -4,6 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Column;
 import javax.validation.constraints.PastOrPresent;
 import javax.validation.constraints.Positive;
 import java.time.LocalDate;
@@ -17,7 +18,7 @@ public class Expense {
 
     private String description;
 
-    // Amount must be greater than 0
+    // Amount must be greater than 0 (positive) and will be shown with two decimal places in the frontend.
     @Positive(message = "Amount must be greater than 0")
     private Double amount;
 
@@ -25,10 +26,14 @@ public class Expense {
     @PastOrPresent(message = "Date must not be in the future")
     private LocalDate date;
 
-    // Category field for filtering (optional, you may add more fields as needed)
+    // Category for filtering and display; fill this field for data testing and demo purposes.
     private String category;
 
-    // Constructors, getters and setters...
+    // Soft delete flag; if true, the expense is archived (soft-deleted)
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    // Constructors
 
     public Expense() {
     }
@@ -38,14 +43,13 @@ public class Expense {
         this.amount = amount;
         this.date = date;
         this.category = category;
+        this.deleted = false;
     }
+
+    // Getters and Setters
 
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public String getDescription() {
@@ -60,6 +64,7 @@ public class Expense {
         return amount;
     }
 
+    // When saving, you may format or round the amount to two decimal places either here or in a service method.
     public void setAmount(Double amount) {
         this.amount = amount;
     }
@@ -78,5 +83,13 @@ public class Expense {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 }

@@ -44,7 +44,10 @@ public class ExpenseService {
     }
 
     public void deleteExpense(Long id) {
-        expenseRepository.deleteById(id);
+        Expense expense = expenseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Expense not found with id: " + id));
+        expense.setDeleted(true);
+        expenseRepository.save(expense);
     }
 
     // New: Query methods that support filtering and paging
@@ -56,6 +59,10 @@ public class ExpenseService {
                                      Pageable pageable) {
         Specification<Expense> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            // Only include non-deleted expenses (i.e., soft delete flag is false)
+            predicates.add(cb.equal(root.get("deleted"), false));
+
             if (category != null && !category.trim().isEmpty()) {
                 predicates.add(cb.equal(root.get("category"), category));
             }
@@ -75,5 +82,9 @@ public class ExpenseService {
         };
 
         return expenseRepository.findAll(spec, pageable);
+    }
+
+    public List<Expense> getArchivedExpenses() {
+        return expenseRepository.findByDeletedTrue();
     }
 }
