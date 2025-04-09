@@ -1,170 +1,196 @@
 <template>
-  <div class="expense-list">
-    <h2>Expense List</h2>
+  <div>
+    <h2>Expenses</h2>
+    <!-- ExpenseForm 组件 -->
+    <expense-form @expense-added="fetchExpenses" />
 
     <!-- Filter Controls -->
-    <div class="filter-controls">
-      <label>
-        Description:
-        <input v-model="filters.description" placeholder="Expense Description" />
-      </label>
+    <div class="filters">
+      <input v-model="filters.category" placeholder="Category" />
+      <input type="date" v-model="filters.startDate" placeholder="Start Date" />
+      <input type="date" v-model="filters.endDate" placeholder="End Date" />
+      <input v-model.number="filters.minAmount" type="number" placeholder="Min Amount" step="0.01" />
+      <input v-model.number="filters.maxAmount" type="number" placeholder="Max Amount" step="0.01" />
+      <button @click="applyFilters">Apply Filters</button>
+    </div>
 
-      <label>
-        Category:
-        <select v-model="filters.category">
-          <option value="">All Categories</option>
-          <option value="Food">Food</option>
-          <option value="Travel">Travel</option>
-          <option value="Shopping">Shopping</option>
-          <!-- You can add more categories as needed -->
-        </select>
-      </label>
-
-      <label>
-        Start Date:
-        <input type="date" v-model="filters.startDate" />
-      </label>
-
-      <label>
-        End Date:
-        <input type="date" v-model="filters.endDate" />
-      </label>
-
-      <label>
-        Min Amount:
-        <input type="number" v-model.number="filters.minAmount" placeholder="Min Amount" />
-      </label>
-
-      <label>
-        Max Amount:
-        <input type="number" v-model.number="filters.maxAmount" placeholder="Max Amount" />
-      </label>
-
-      <button @click="onFilterChange">Search</button>
+    <!-- Error Message Display -->
+    <div class="error" v-if="errorMessage">
+      {{ errorMessage }}
     </div>
 
     <!-- Expense List -->
     <ul>
       <li v-for="expense in expenses" :key="expense.id">
-        {{ expense.description }} - {{ expense.category }} - {{ expense.amount }} - {{ expense.date }}
+        {{ expense.description }} - {{ expense.amount.toFixed(2) }} - {{ expense.date }} - {{ expense.category }}
+        <!-- Archive button instead of Delete -->
+        <button @click="archiveExpense(expense.id)">Archive</button>
       </li>
     </ul>
 
     <!-- Pagination Controls -->
     <div class="pagination">
-      <button @click="prevPage" :disabled="page === 1">Previous</button>
-      <span>Page {{ page }} of {{ totalPages }}</span>
-      <button @click="nextPage" :disabled="page >= totalPages">Next</button>
+      <button @click="previousPage" :disabled="page <= 0">Previous</button>
+      <span>Page {{ page + 1 }} of {{ totalPages }}</span>
+      <button @click="nextPage" :disabled="page >= totalPages - 1">Next</button>
     </div>
 
-    <!-- Total Expenses Count (Optional) -->
-    <div class="total-expenses">
-      Total Expenses: {{ totalExpenses }}
+    <button @click="logout">Logout</button>
+
+    <!-- Section to view archived expenses -->
+    <div class="archived-section">
+      <h2>Archived Expenses</h2>
+      <button @click="toggleArchived">
+        {{ showArchived ? 'Hide Archived' : 'Show Archived' }}
+      </button>
+      <ul v-if="showArchived">
+        <li v-for="expense in archivedExpenses" :key="expense.id">
+          {{ expense.description }} - {{ expense.amount.toFixed(2) }} - {{ expense.date }} - {{ expense.category }}
+        </li>
+      </ul>
     </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import ExpenseForm from './ExpenseForm.vue';
 
 export default {
-  name: 'ExpenseList',
+  components: { ExpenseForm },
   data() {
     return {
       expenses: [],
-      // Pagination info
-      page: 1,
+      archivedExpenses: [],
+      page: 0,
       size: 10,
-      totalPages: 1,
-      totalExpenses: 0,
-      // Filter criteria
+      totalPages: 0,
+      errorMessage: '',
+      showArchived: false,
       filters: {
-        description: '',
         category: '',
         startDate: '',
         endDate: '',
         minAmount: null,
-        maxAmount: null
+        maxAmount: null,
       }
     };
   },
+  mounted() {
+    this.fetchExpenses();
+  },
   methods: {
-    // When filter criteria change, reset page number and fetch data
-    onFilterChange() {
-      this.page = 1;
-      this.fetchExpenses();
-    },
-    // Fetch expenses data using the current filter and pagination parameters
     fetchExpenses() {
       const auth = localStorage.getItem('auth');
+      if (!auth) {
+        this.$router.push('/');
+        return;
+      }
+      // Build request parameters including filtering and pagination options
       const params = {
         page: this.page,
         size: this.size,
-        // Only include non-empty filter parameters
-        ...(this.filters.description && { description: this.filters.description }),
-        ...(this.filters.category && { category: this.filters.category }),
-        ...(this.filters.startDate && { startDate: this.filters.startDate }),
-        ...(this.filters.endDate && { endDate: this.filters.endDate }),
-        ...(this.filters.minAmount != null && { minAmount: this.filters.minAmount }),
-        ...(this.filters.maxAmount != null && { maxAmount: this.filters.maxAmount })
+        ...(this.filters.category ? { category: this.filters.category } : {}),
+        ...(this.filters.startDate ? { startDate: this.filters.startDate } : {}),
+        ...(this.filters.endDate ? { endDate: this.filters.endDate } : {}),
+        ...(this.filters.minAmount != null ? { minAmount: this.filters.minAmount } : {}),
+        ...(this.filters.maxAmount != null ? { maxAmount: this.filters.maxAmount } : {}),
       };
-
       axios.get('http://localhost:8080/api/expenses', {
         headers: { 'Authorization': `Basic ${auth}` },
-        params
+        params: params,
       })
           .then(response => {
-            // Assume the backend returns a response in the format:
-            // { data: [expenses], totalPages: number, totalExpenses: number }
+            // 假设后端返回结构为 { data: [...], totalPages: number, totalExpenses: number }
             this.expenses = response.data.data;
             this.totalPages = response.data.totalPages;
-            this.totalExpenses = response.data.totalExpenses;
+            this.errorMessage = '';
           })
           .catch(error => {
-            console.error("Error fetching expenses:", error);
+            this.errorMessage = 'Failed to fetch expenses. Please try again later.';
+            console.error('Error fetching expenses:', error);
           });
     },
+    archiveExpense(id) {
+      const auth = localStorage.getItem('auth');
+      axios.delete(`http://localhost:8080/api/expenses/${id}`, {
+        headers: { 'Authorization': `Basic ${auth}` }
+      })
+          .then(() => {
+            // Refresh the expense list after archiving
+            this.fetchExpenses();
+          })
+          .catch(error => {
+            this.errorMessage = 'Failed to archive expense. Please try again later.';
+            console.error('Error archiving expense:', error);
+          });
+    },
+    logout() {
+      localStorage.removeItem('auth');
+      this.$router.push('/');
+    },
+    applyFilters() {
+      // Reset to first page when filters change
+      this.page = 0;
+      this.fetchExpenses();
+    },
+    previousPage() {
+      if (this.page > 0) {
+        this.page--;
+        this.fetchExpenses();
+      }
+    },
     nextPage() {
-      if (this.page < this.totalPages) {
+      if (this.page < this.totalPages - 1) {
         this.page++;
         this.fetchExpenses();
       }
     },
-    prevPage() {
-      if (this.page > 1) {
-        this.page--;
-        this.fetchExpenses();
+    toggleArchived() {
+      this.showArchived = !this.showArchived;
+      if (this.showArchived) {
+        this.fetchArchivedExpenses();
       }
+    },
+    fetchArchivedExpenses() {
+      const auth = localStorage.getItem('auth');
+      axios.get('http://localhost:8080/api/expenses/archived', {
+        headers: { 'Authorization': `Basic ${auth}` }
+      })
+          .then(response => {
+            // 假设返回的 JSON 为归档的费用列表
+            this.archivedExpenses = response.data;
+          })
+          .catch(error => {
+            this.errorMessage = 'Failed to fetch archived expenses. Please try again later.';
+            console.error('Error fetching archived expenses:', error);
+          });
     }
-  },
-  mounted() {
-    this.fetchExpenses();
   }
 };
 </script>
 
 <style scoped>
-.expense-list {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+.filters {
+  margin-bottom: 1rem;
 }
-
-.filter-controls {
-  margin-bottom: 20px;
+.filters input {
+  margin-right: 0.5rem;
+  padding: 0.25rem;
 }
-
-.filter-controls label {
-  margin-right: 10px;
-  display: inline-block;
-  margin-bottom: 5px;
-}
-
 .pagination {
-  margin-top: 20px;
+  margin-top: 1rem;
 }
-
 .pagination button {
-  margin: 0 5px;
+  margin-right: 0.5rem;
+}
+.error {
+  color: red;
+  margin-bottom: 1rem;
+}
+.archived-section {
+  margin-top: 2rem;
+  border-top: 1px solid #ccc;
+  padding-top: 1rem;
 }
 </style>
