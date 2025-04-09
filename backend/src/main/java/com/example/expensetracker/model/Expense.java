@@ -4,20 +4,32 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.validation.constraints.PastOrPresent;
+import javax.validation.constraints.Positive;
 import java.time.LocalDate;
 
 @Entity
 public class Expense {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String description;
+
+    // Amount must be greater than 0
+    @Positive(message = "Amount must be greater than 0")
     private Double amount;
+
+    // Date must not be in the future
+    @PastOrPresent(message = "Date must not be in the future")
     private LocalDate date;
-    // add new field：Category
+
+    // Category field for filtering (optional, you may add more fields as needed)
     private String category;
 
-    // Constructors
+    // Constructors, getters and setters...
+
     public Expense() {
     }
 
@@ -28,7 +40,6 @@ public class Expense {
         this.category = category;
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
