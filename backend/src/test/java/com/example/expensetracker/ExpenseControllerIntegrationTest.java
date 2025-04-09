@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-
+import static org.hamcrest.Matchers.hasItem;
 import java.time.LocalDate;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -68,5 +68,32 @@ public class ExpenseControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].description", is(expense.getDescription())));
+    }
+
+    /**
+     * This test case sends a POST request with an invalid Expense JSON payload.
+     * It triggers validation errors for a negative amount and a future date.
+     * The global ExceptionHandler (implemented via @ControllerAdvice)
+     * should intercept the validation exceptions and return a 400 Bad Request
+     * response with a JSON body containing error messages.
+     */
+    @Test
+    public void testValidationErrorHandling() throws Exception {
+        String invalidExpenseJson = "{"
+                + "\"description\": \"Invalid expense\","
+                + "\"amount\": -10.00,"         // Invalid because amount must be > 0
+                + "\"date\": \"2050-12-31\","     // Invalid because date must not be in the future
+                + "\"category\": \"Misc\""
+                + "}";
+
+        mockMvc.perform(post("/api/expenses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidExpenseJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                // Assuming the error response JSON contains an "errors" array
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors", hasItem("Amount must be greater than 0")))
+                .andExpect(jsonPath("$.errors", hasItem("Date must not be in the future")));
     }
 }
