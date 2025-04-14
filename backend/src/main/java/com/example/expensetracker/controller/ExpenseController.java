@@ -8,8 +8,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.constraints.Min;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/expenses")
+@Validated
 public class ExpenseController {
 
     @Autowired
@@ -50,7 +53,7 @@ public class ExpenseController {
 
     // Return a single expense by its id
     @GetMapping("/{id}")
-    public Expense getExpenseById(@PathVariable Long id) {
+    public Expense getExpenseById(@PathVariable @Min(1) Long id) {
         return expenseService.getExpenseById(id);
     }
 
@@ -68,9 +71,10 @@ public class ExpenseController {
 
     // Soft delete (archive) an expense by setting the deleted flag.
     @DeleteMapping("/{id}")
-    public void deleteExpense(@PathVariable Long id) {
+    public void deleteExpense(@PathVariable @Min(1) Long id) {
         expenseService.deleteExpense(id);
     }
+
     // New endpoint to return archived (soft-deleted) expenses
     @GetMapping("/archived")
     public ResponseEntity<?> getArchivedExpenses() {
