@@ -11,8 +11,11 @@ import java.util.List;
 @Service
 public class ExpenseArchivingService {
 
-    @Autowired
-    private ExpenseRepository expenseRepository;
+    private final ExpenseRepository expenseRepository;
+
+    public ExpenseArchivingService(ExpenseRepository expenseRepository) {
+        this.expenseRepository = expenseRepository;
+    }
 
     // This scheduled method will run every day at midnight.
     @Scheduled(cron = "0 0 0 * * ?")
