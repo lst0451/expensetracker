@@ -66,6 +66,19 @@
           <i class="error-icon">⚠️</i> {{ error }}
         </div>
       </transition>
+      
+      <!-- Field-specific validation errors -->
+      <transition name="fade">
+        <div v-if="validationErrors.amount" class="validation-error">
+          <i class="error-icon">⚠️</i> {{ validationErrors.amount }}
+        </div>
+      </transition>
+      
+      <transition name="fade">
+        <div v-if="validationErrors.date" class="validation-error">
+          <i class="error-icon">⚠️</i> {{ validationErrors.date }}
+        </div>
+      </transition>
 
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" @click="resetForm">Reset</button>
@@ -90,14 +103,46 @@ export default {
       amount: null,
       date: new Date().toISOString().substr(0, 10), // Default to today
       error: '',
+      validationErrors: {
+        amount: '',
+        date: ''
+      },
       isSubmitting: false
     };
   },
   methods: {
     addExpense() {
-      // Form validation
+      // Reset validation errors
+      this.error = '';
+      this.validationErrors = {
+        amount: '',
+        date: ''
+      };
+      
+      // Client-side validation
+      let isValid = true;
+      
       if (!this.category) {
         this.error = 'Please select a category';
+        isValid = false;
+      }
+      
+      if (this.amount !== null && this.amount <= 0) {
+        this.validationErrors.amount = 'Amount must be greater than 0';
+        isValid = false;
+      }
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(this.date);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      if (selectedDate > today) {
+        this.validationErrors.date = 'Date must not be in the future';
+        isValid = false;
+      }
+      
+      if (!isValid) {
         return;
       }
 
@@ -115,6 +160,7 @@ export default {
           .then(response => {
             // Clear form and error message on successful submission
             this.error = '';
+            this.validationErrors = { amount: '', date: '' };
             this.$emit('expense-added', response.data);
             this.showSuccessMessage();
             this.resetForm();
@@ -122,10 +168,34 @@ export default {
           .catch(error => {
             // If server returns validation error, show friendly error message
             if (error.response && error.response.status === 400) {
-              // Combine field errors into a single string
+              // Handle field-specific errors
               const errors = error.response.data.errors;
-              const errorMessages = Object.values(errors).join(' | ');
-              this.error = errorMessages || 'Validation error';
+              
+              if (typeof errors === 'object') {
+                // Clear previous errors
+                this.validationErrors = { amount: '', date: '' };
+                
+                // Set field-specific errors
+                if (errors.amount) {
+                  this.validationErrors.amount = errors.amount;
+                }
+                
+                if (errors.date) {
+                  this.validationErrors.date = errors.date;
+                }
+                
+                // Set general error if there are other fields with errors
+                const otherErrors = Object.entries(errors)
+                  .filter(([key]) => key !== 'amount' && key !== 'date')
+                  .map(([_, value]) => value);
+                
+                if (otherErrors.length > 0) {
+                  this.error = otherErrors.join(' | ');
+                }
+              } else {
+                // If errors is not an object, set general error
+                this.error = 'Validation error: ' + (error.response.data.message || 'Please check your input');
+              }
             } else {
               this.error = 'An error occurred while adding expense';
             }
@@ -142,6 +212,10 @@ export default {
       this.amount = null;
       this.date = new Date().toISOString().substr(0, 10);
       this.error = '';
+      this.validationErrors = {
+        amount: '',
+        date: ''
+      };
     },
 
     showSuccessMessage() {
@@ -228,7 +302,7 @@ export default {
   padding-left: 24px;
 }
 
-.error-message {
+.error-message, .validation-error {
   background-color: #fef0f0;
   color: #f56c6c;
   padding: 10px;
@@ -237,6 +311,11 @@ export default {
   display: flex;
   align-items: center;
   margin-top: 8px;
+}
+
+.validation-error {
+  background-color: #fff6f6;
+  border-left: 3px solid #f56c6c;
 }
 
 .error-icon {

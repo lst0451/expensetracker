@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Min;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -57,22 +58,45 @@ public class ExpenseController {
         return expenseService.getExpenseById(id);
     }
 
-    // Create a new expense record
+    // Create a new expense record with validation
     @PostMapping
-    public Expense createExpense(@RequestBody Expense expense) {
-        return expenseService.createExpense(expense);
+    public ResponseEntity<Expense> createExpense(@Valid @RequestBody Expense expense) {
+        // Additional validation for future dates
+        if (expense.getDate() != null && expense.getDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Date must not be in the future");
+        }
+        
+        // Additional validation for amount
+        if (expense.getAmount() != null && expense.getAmount() <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than 0");
+        }
+        
+        Expense createdExpense = expenseService.createExpense(expense);
+        return new ResponseEntity<>(createdExpense, HttpStatus.CREATED);
     }
 
-    // Update an existing expense record identified by id.
+    // Update an existing expense record identified by id with validation
     @PutMapping("/{id}")
-    public Expense updateExpense(@PathVariable Long id, @RequestBody Expense expense) {
-        return expenseService.updateExpense(id, expense);
+    public ResponseEntity<Expense> updateExpense(@PathVariable @Min(1) Long id, @Valid @RequestBody Expense expense) {
+        // Additional validation for future dates
+        if (expense.getDate() != null && expense.getDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Date must not be in the future");
+        }
+        
+        // Additional validation for amount
+        if (expense.getAmount() != null && expense.getAmount() <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than 0");
+        }
+        
+        Expense updatedExpense = expenseService.updateExpense(id, expense);
+        return new ResponseEntity<>(updatedExpense, HttpStatus.OK);
     }
 
     // Soft delete (archive) an expense by setting the deleted flag.
     @DeleteMapping("/{id}")
-    public void deleteExpense(@PathVariable @Min(1) Long id) {
+    public ResponseEntity<Void> deleteExpense(@PathVariable @Min(1) Long id) {
         expenseService.deleteExpense(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     // New endpoint to return archived (soft-deleted) expenses

@@ -57,6 +57,29 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(responseBody, HttpStatus.BAD_REQUEST);
     }
-
-
+    
+    // Handle resource not found exception
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(
+            ResourceNotFoundException ex) {
+        
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("timestamp", LocalDateTime.now());
+        responseBody.put("status", HttpStatus.NOT_FOUND.value());
+        responseBody.put("message", ex.getMessage());
+        
+        return new ResponseEntity<>(responseBody, HttpStatus.NOT_FOUND);
+    }
+    
+    // Handle general exceptions
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGeneralExceptions(Exception ex) {
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("timestamp", LocalDateTime.now());
+        responseBody.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        responseBody.put("message", "An unexpected error occurred");
+        responseBody.put("error", ex.getMessage());
+        
+        return new ResponseEntity<>(responseBody, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }
